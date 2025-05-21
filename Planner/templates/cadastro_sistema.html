@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro Sistema{% endblock %}
+{% block header_title %}Cadastro de Sistema{% endblock %}
+
+{% block content %}
+<style>
+  .sistema-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.2rem;
+    width: 90%;
+    max-width: 1000px;
+    margin: 2rem auto;
+  }
+
+  .sistema-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    padding: 1.2rem 1rem;
+    text-align: center;
+    transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+  }
+
+  .sistema-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .sistema-card a {
+    text-decoration: none;
+    color: #2e7d32;
+    font-weight: bold;
+    font-size: 0.95rem;
+  }
+</style>
+
+<div class="sistema-grid">
+  <div class="sistema-card"><a href="/cadastro_usuario">Cadastro de Usuário</a></div>
+  <div class="sistema-card"><a href="/cadastro_grupo_usuario">Cadastro de Grupo de Usuário</a></div>
+  <div class="sistema-card"><a href="/permissoes">Permissões</a></div>
+</div>
+{% endblock %}

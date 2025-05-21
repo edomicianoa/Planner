@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Permissões por Grupo{% endblock %}
+{% block header_title %}Gerenciar Permissões dos Grupos{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <label>Selecione o Grupo:</label>
+  <select name="id_grupo" id="grupoSelect" onchange="carregarPermissoes()" required>
+    <option value="">-- Escolha o Grupo --</option>
+    {% for g in grupos %}
+      <option value="{{ g.IDGrupo }}">{{ g.NomeGrupo }}</option>
+    {% endfor %}
+  </select>
+
+  <div style="display: flex; gap: 2rem; margin-top: 1.5rem;">
+    <div style="flex: 1;">
+      <label>Permissões Disponíveis:</label>
+      <select multiple id="disponiveis" style="width: 100%; height: 250px;"></select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; justify-content: center; gap: 1rem;">
+      <button type="button" onclick="mover('disponiveis', 'liberadas')">➡️</button>
+      <button type="button" onclick="mover('liberadas', 'disponiveis')">⬅️</button>
+    </div>
+
+    <div style="flex: 1;">
+      <label>Permissões Liberadas:</label>
+      <select multiple name="permissoes[]" id="liberadas" style="width: 100%; height: 250px;"></select>
+    </div>
+  </div>
+
+  <input type="hidden" name="novas_permissoes" id="novasPermissoes">
+
+  <div style="display: flex; align-items: center; gap: 1.5rem; margin-top: 1.5rem;">
+    <button type="submit" style="
+      padding: 0.55rem 1.3rem;
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    ">Salvar Permissões</button>
+  </div>
+  
+  {% if session['usuario_nome'] == 'admin' %}
+  <div style="margin-top: 2rem;">
+    <label for="novaPermissao">Cadastrar nova permissão:</label>
+    <input type="text" id="novaPermissaoInput" placeholder="/nova_rota" style="padding: 0.4rem; width: 250px; margin-right: 1rem;">
+    <button type="button" onclick="adicionarNovaPermissao()" style="
+      padding: 0.4rem 1rem;
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: 600;
+      cursor: pointer;
+    ">+ Adicionar</button>
+  </div>
+{% endif %}
+
+</form>
+
+<script>
+  const todasPermissoes = {{ permissoes|tojson }};
+  const permissoesGrupo = {{ permissao_grupo|tojson }};
+
+  function carregarPermissoes() {
+    const grupoId = document.getElementById('grupoSelect').value;
+    const liberadas = permissoesGrupo[grupoId] || [];
+    const disponiveis = todasPermissoes.filter(p => !liberadas.includes(p));
+
+    document.getElementById('disponiveis').innerHTML = '';
+    document.getElementById('liberadas').innerHTML = '';
+
+    disponiveis.forEach(p => {
+      const opt = new Option(p, p);
+      document.getElementById('disponiveis').add(opt);
+    });
+
+    liberadas.forEach(p => {
+      const opt = new Option(p, p);
+      document.getElementById('liberadas').add(opt);
+    });
+  }
+
+  function mover(origemId, destinoId) {
+    const origem = document.getElementById(origemId);
+    const destino = document.getElementById(destinoId);
+    Array.from(origem.selectedOptions).forEach(opt => {
+      origem.remove(opt.index);
+      destino.add(opt);
+    });
+  }
+	function adicionarNovaPermissao() {
+  const nova = document.getElementById('novaPermissaoInput').value.trim();
+  if (nova) {
+    const opt = new Option(nova, nova);
+    opt.dataset.nova = "true";
+    document.getElementById('disponiveis').add(opt);
+    document.getElementById('novaPermissaoInput').value = '';
+  }
+}
+
+// captura permissões novas no submit
+document.querySelector('form').addEventListener('submit', function () {
+  const liberadas = document.getElementById('liberadas');
+  for (let i = 0; i < liberadas.options.length; i++) {
+    liberadas.options[i].selected = true;
+  }
+
+  const novas = [];
+  const todos = document.querySelectorAll('#disponiveis option, #liberadas option');
+  todos.forEach(opt => {
+    if (opt.dataset.nova === 'true') novas.push(opt.value);
+  });
+  document.getElementById('novasPermissoes').value = JSON.stringify(novas);
+});
+
+  document.querySelector('form').addEventListener('submit', function () {
+    const liberadas = document.getElementById('liberadas');
+    for (let i = 0; i < liberadas.options.length; i++) {
+      liberadas.options[i].selected = true;
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro de Usuários{% endblock %}
+{% block header_title %}Cadastro de Usuários{% endblock %}
+
+{% block content %}
+<div class="nav-buttons">
+ 
+</div>
+
+<form method="POST">
+  <input type="hidden" name="id_usuario" value="{{ usuario_editar.IDUsuario if usuario_editar else '' }}">
+  
+  <label>Código de Usuário:</label>
+  <input type="text" name="codigo" value="{{ usuario_editar.CodigoUsuario if usuario_editar else '' }}" required>
+  <label>Nome:</label>
+  <input type="text" name="nome" value="{{ usuario_editar.NomeUsuario if usuario_editar else '' }}" required>
+
+  <label>Registro Funcional:</label>
+  <input type="text" name="registro" value="{{ usuario_editar.RegistroFuncional if usuario_editar else '' }}" required>
+
+  <label>Senha:</label>
+  <input type="password" name="senha" value="{{ usuario_editar.Senha if usuario_editar else '' }}" required>
+
+  <label>Grupo:</label>
+  <select name="grupo" required>
+    {% for g in grupos %}
+      <option value="{{ g.IDGrupo }}" {% if usuario_editar and usuario_editar.IDGrupo == g.IDGrupo %}selected{% endif %}>{{ g.NomeGrupo }}</option>
+    {% endfor %}
+  </select>
+
+  <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+    <label style="display: flex; align-items: center; gap: 0.5rem;">
+      <input type="checkbox" name="ativo" {% if not usuario_editar or usuario_editar.Ativo %}checked{% endif %}>
+      Ativo
+    </label>
+
+    <label style="display: flex; align-items: center; gap: 0.5rem;">
+      <input type="checkbox" name="tambem_operador"
+        {% if usuario_editar and usuario_editar.IDUsuario in ids_usuarios_operadores %}checked{% endif %}>
+      Operador
+    </label>
+  </div>
+
+  <button type="submit">{{ 'Atualizar' if usuario_editar else 'Salvar' }}</button>
+</form>
+
+<h2>Usuários Cadastrados</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Nome</th>
+    <th>Registro</th>
+    <th>Código</th>
+    <th>Senha</th>
+    <th>Grupo</th>
+    <th>Status</th>
+    <th>Ação</th>
+  </tr>
+  {% for u in usuarios %}
+  <tr>
+    <td>{{ u.IDUsuario }}</td>
+    <td>{{ u.NomeUsuario }}</td>
+    <td>{{ u.RegistroFuncional }}</td>
+    <td>{{ u.CodigoUsuario }}</td>
+    <td>{{ u.Senha }}</td>
+    <td>{{ u.NomeGrupo or 'N/A' }}</td>
+    <td>{{ 'Ativo' if u.Ativo else 'Inativo' }}</td>
+    <td><a href="/cadastro_usuario?id={{ u.IDUsuario }}" class="btn-editar">Editar</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

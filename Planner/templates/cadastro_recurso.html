@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro de Recursos{% endblock %}
+{% block header_title %}Cadastro de Recursos{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <input type="hidden" name="id_recurso" value="{{ recurso_editar.IDMaquina if recurso_editar else '' }}">
+
+  <label>Código:</label>
+  <input type="text" name="codigo" value="{{ recurso_editar.CodigoInterno if recurso_editar else '' }}" required>
+
+  <label>Nome da Máquina / Operador:</label>
+  <input type="text" name="nome" value="{{ recurso_editar.NomeMaquina if recurso_editar else '' }}" required>
+
+  <label>Tipo:</label>
+  <select name="tipo" required>
+    {% for t in tipos %}
+      <option value="{{ t.IDTipo }}" {% if recurso_editar and recurso_editar.IDTipo == t.IDTipo %}selected{% endif %}>{{ t.NomeTipo }}</option>
+    {% endfor %}
+  </select>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold;">
+        <input type="checkbox" name="ativo" {% if not recurso_editar or recurso_editar.Ativo %}checked{% endif %}>
+        Ativo
+      </label>
+
+      <button type="submit" style="
+        padding: 0.5rem 1.1rem;
+        background-color: #2e7d32;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.95rem;
+      ">{{ 'Atualizar' if recurso_editar else 'Salvar' }}</button>
+    </div>
+  </div>
+</form>
+
+<h2>Recursos Cadastrados</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Nome</th>
+    <th>Código</th>
+    <th>Tipo</th>
+    <th>Status</th>
+    <th>Ação</th>
+  </tr>
+  {% for r in recursos %}
+  <tr>
+    <td>{{ r.IDMaquina }}</td>
+    <td>{{ r.NomeMaquina }}</td>
+    <td>{{ r.CodigoInterno }}</td>
+    <td>{{ r.NomeTipo if r.NomeTipo else 'N/A' }}</td>
+    <td>{{ 'Ativo' if r.Ativo else 'Inativo' }}</td>
+    <td>
+      <a href="/cadastro_recurso?id={{ r.IDMaquina }}" style="
+        padding: 0.25rem 0.6rem;
+        background-color: #e0e0e0;
+        color: #2e7d32;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        text-decoration: none;
+        font-weight: 500;
+      ">Editar</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro de Empresa{% endblock %}
+{% block header_title %}Cadastro de Empresa{% endblock %}
+
+{% block content %}
+<form method="POST">
+  
+    <label>Código:</label>
+  <input type="text" name="codigo" required>
+  
+  <label>Nome:</label>
+  <input type="text" name="nome" required>
+  
+  <label>Descrição:</label>
+  <input type="text" name="descricao">
+
+ <div style="display: flex; align-items: flex-end; gap: 1rem; margin-top: 1.5rem;">
+  <div style="display: flex; align-items: center; gap: 0.5rem; height: 40px;">
+    <input type="checkbox" name="ativo" id="ativo" checked style="margin: 0;">
+    <label for="ativo" style="font-weight: bold; margin: 0;">Ativo</label>
+  </div>
+
+  <button type="submit" style="
+    padding: 0.55rem 1.3rem;
+    background-color: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    height: 40px;
+  ">Salvar</button>
+</div>
+
+
+
+<h2>Empresas Cadastradas</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Nome</th>
+    <th>Código</th>
+    <th>Descrição</th>
+    <th>Status</th>
+  </tr>
+  {% for e in empresas %}
+  <tr>
+    <td>{{ e.IDEmpresa }}</td>
+    <td>{{ e.Nome }}</td>
+    <td>{{ e.Codigo }}</td>
+    <td>{{ e.Descricao }}</td>
+    <td>{{ 'Ativo' if e.Ativo else 'Inativo' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

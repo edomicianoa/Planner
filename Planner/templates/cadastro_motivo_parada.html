@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro Motivo de Parada{% endblock %}
+{% block header_title %}Cadastro de Motivos de Parada{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <input type="hidden" name="id_motivo" value="{{ motivo_editar.IDMotivoParada if motivo_editar else '' }}">
+
+  <label>Código:</label>
+  <input type="text" name="codigo" value="{{ motivo_editar.Codigo if motivo_editar else '' }}">
+
+  <label>Descrição:</label>
+  <input type="text" name="descricao" value="{{ motivo_editar.Descricao if motivo_editar else '' }}" required>
+
+  <label>Parada Planejada:</label>
+  <select name="planejada" required style="width: 100%; padding: 0.5rem; border-radius: 5px; border: 1px solid #ccc;">
+    <option value="1" {% if motivo_editar and motivo_editar.FlgPlanejada == 1 %}selected{% endif %}>Sim</option>
+    <option value="0" {% if motivo_editar and motivo_editar.FlgPlanejada == 0 %}selected{% endif %}>Não</option>
+  </select>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold;">
+        <input type="checkbox" name="ativo" {% if not motivo_editar or motivo_editar.Ativo %}checked{% endif %}>
+        Ativo
+      </label>
+
+      <button type="submit" style="
+        padding: 0.5rem 1.1rem;
+        background-color: #2e7d32;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.95rem;
+      ">{{ 'Atualizar' if motivo_editar else 'Salvar' }}</button>
+    </div>
+  </div>
+</form>
+
+<h2>Motivos Cadastrados</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Descrição</th>
+    <th>Código</th>
+    <th>Planejada</th>
+    <th>Status</th>
+    <th>Ação</th>
+  </tr>
+  {% for m in motivos %}
+  <tr>
+    <td>{{ m.IDMotivoParada }}</td>
+    <td>{{ m.Descricao }}</td>
+    <td>{{ m.Codigo }}</td>
+    <td>{% if m.FlgPlanejada %}Sim{% else %}Não{% endif %}</td>
+    <td>{% if m.Ativo %}Ativo{% else %}Inativo{% endif %}</td>
+    <td>
+      <a href="/cadastro_motivo_parada?id={{ m.IDMotivoParada }}" style="
+        padding: 0.25rem 0.6rem;
+        background-color: #e0e0e0;
+        color: #2e7d32;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        text-decoration: none;
+        font-weight: 500;
+      ">Editar</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

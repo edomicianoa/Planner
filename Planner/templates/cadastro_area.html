@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro de Área{% endblock %}
+{% block header_title %}Cadastro de Área{% endblock %}
+
+{% block content %}
+<form method="POST">
+
+  <label>Código:</label>
+  <input type="text" name="codigo" required>
+
+  <label>Nome:</label>
+  <input type="text" name="nome" required>
+  
+  <label>Descrição:</label>
+  <input type="text" name="descricao">
+
+  <label>Empresa:</label>
+  <select name="id_empresa" required>
+    {% for e in empresas %}
+      <option value="{{ e.IDEmpresa }}">{{ e.Nome }}</option>
+    {% endfor %}
+  </select>
+
+  <div style="display: flex; align-items: flex-end; gap: 1rem; margin-top: 1.5rem;">
+  <div style="display: flex; align-items: center; gap: 0.5rem; height: 40px;">
+    <input type="checkbox" name="ativo" id="ativo" checked style="margin: 0;">
+    <label for="ativo" style="font-weight: bold; margin: 0;">Ativo</label>
+  </div>
+
+  <button type="submit" style="
+    padding: 0.55rem 1.3rem;
+    background-color: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    height: 40px;
+  ">Salvar</button>
+</div>
+
+
+
+<h2>Áreas Cadastradas</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Nome</th>
+    <th>Código</th>
+    <th>Descrição</th>
+    <th>Status</th>
+    <th>ID Empresa</th>
+  </tr>
+  {% for a in areas %}
+  <tr>
+    <td>{{ a.IDArea }}</td>
+    <td>{{ a.Nome }}</td>
+    <td>{{ a.Codigo }}</td>
+    <td>{{ a.Descricao }}</td>
+    <td>{{ 'Ativo' if a.Ativo else 'Inativo' }}</td>
+    <td>{{ a.IDEmpresa }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

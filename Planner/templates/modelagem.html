@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Modelagem{% endblock %}
+{% block header_title %}Modelagem {% endblock %}
+
+{% block content %}
+<style>
+
+	.welcome {
+    text-align: center;
+    margin-top: 2rem;
+  }
+  
+    .welcome h1 {
+    color: #2e7d32;
+    font-size: 2.2rem;
+  }
+  
+  .modelagem-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.2rem;
+    width: 90%;
+    max-width: 1000px;
+    margin: 2rem auto;
+  }
+
+  .modelagem-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    padding: 1.2rem 1rem;
+    text-align: center;
+    transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+  }
+
+  .modelagem-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .modelagem-card a {
+    text-decoration: none;
+    color: #2e7d32;
+    font-weight: bold;
+    font-size: 0.95rem;
+  }
+</style>
+<div class="welcome">
+  <h1>Cadastros</h1>
+  </div>
+<div class="modelagem-grid">
+  <div class="modelagem-card"><a href="/cadastro_empresa">Empresa</a></div>
+  <div class="modelagem-card"><a href="/cadastro_area"> Área</a></div>
+  <div class="modelagem-card"><a href="/cadastro_setor"> Setor</a></div> 
+  <div class="modelagem-card"><a href="/cadastro_recurso"> Recurso</a></div>
+  <div class="modelagem-card"><a href="/cadastro_grupo_parada"> Grupo Parada</a></div>
+  <div class="modelagem-card"><a href="/cadastro_motivo_parada"> Motivo Parada</a></div>
+  <div class="modelagem-card"><a href="/cadastro_grupo_motivo_refugo"> Grupo Motivo Refugo</a></div>
+  <div class="modelagem-card"><a href="/cadastro_motivo_refugo"> Motivo Refugo</a></div>
+  <div class="modelagem-card"><a href="/cadastro_grupo_alarme"> Grupo Motivo Alarme</a></div>
+  <div class="modelagem-card"><a href="/cadastro_motivo_alarme"> Motivo Alarme</a></div>
+  <div class="modelagem-card"><a href="/cadastro_ferramenta"> Ferramenta</a></div>
+  <div class="modelagem-card"><a href="/cadastro_turno"> Turno</a></div>
+</div>
+{% endblock %}

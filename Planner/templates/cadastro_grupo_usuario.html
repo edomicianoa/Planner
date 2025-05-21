@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro de Grupos de Usuário{% endblock %}
+{% block header_title %}Cadastro de Grupos de Usuário{% endblock %}
+
+{% block content %}
+<form method="POST">
+  
+  <label>Código do Grupo:</label>
+  <input type="text" name="codigo" required>
+  
+  <label>Nome do Grupo:</label>
+  <input type="text" name="nome" required>
+
+   <div style="display: flex; align-items: flex-end; gap: 1rem; margin-top: 1.5rem;">
+  <div style="display: flex; align-items: center; gap: 0.5rem; height: 40px;">
+    <input type="checkbox" name="ativo" id="ativo" checked style="margin: 0;">
+    <label for="ativo" style="font-weight: bold; margin: 0;">Ativo</label>
+  </div>
+
+  <button type="submit" style="
+    padding: 0.55rem 1.3rem;
+    background-color: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    height: 40px;
+  ">Salvar</button>
+</div>
+
+</form>
+
+<h2>Grupos de Usuário Cadastrados</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Nome</th>
+    <th>Código</th>
+    <th>Status</th>
+  </tr>
+  {% for grupo in grupos %}
+  <tr>
+    <td>{{ grupo.IDGrupo }}</td>
+    <td>{{ grupo.NomeGrupo }}</td>
+    <td>{{ grupo.CodigoGrupo }}</td>
+    <td>{{ 'Ativo' if grupo.Ativo else 'Inativo' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

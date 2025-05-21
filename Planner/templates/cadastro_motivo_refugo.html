@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro de Motivos de Refugo{% endblock %}
+{% block header_title %}Cadastro de Motivos de Refugo{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <input type="hidden" name="id_motivo" value="{{ motivo_editar.IDMotivoRefugo if motivo_editar else '' }}">
+
+  <label>Código:</label>
+  <input type="text" name="codigo" value="{{ motivo_editar.Codigo if motivo_editar else '' }}" required>
+
+  <label>Descrição do Motivo:</label>
+  <input type="text" name="descricao" value="{{ motivo_editar.Descricao if motivo_editar else '' }}" required>
+
+  <label>Grupo:</label>
+  <select name="id_grupo" required>
+    {% for grupo in grupos %}
+      <option value="{{ grupo.IDGrupoMotivoRefugo }}" {% if motivo_editar and motivo_editar.IDGrupoMotivoRefugo == grupo.IDGrupoMotivoRefugo %}selected{% endif %}>
+        {{ grupo.NomeGrupo }}
+      </option>
+    {% endfor %}
+  </select>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold;">
+        <input type="checkbox" name="ativo" {% if not motivo_editar or motivo_editar.Ativo %}checked{% endif %}>
+        Ativo
+      </label>
+
+      <button type="submit" style="
+        padding: 0.5rem 1.1rem;
+        background-color: #2e7d32;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.95rem;
+      ">{{ 'Atualizar' if motivo_editar else 'Salvar' }}</button>
+    </div>
+  </div>
+</form>
+
+<h2>Motivos de Refugo Cadastrados</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Código</th>
+    <th>Descrição</th>
+    <th>Grupo</th>
+    <th>Status</th>
+    <th>Ação</th>
+  </tr>
+  {% for motivo in motivos %}
+  <tr>
+    <td>{{ motivo.IDMotivoRefugo }}</td>
+    <td>{{ motivo.Codigo }}</td>
+    <td>{{ motivo.Descricao }}</td>
+    <td>{{ motivo.NomeGrupo }}</td>
+    <td>{{ 'Ativo' if motivo.Ativo else 'Inativo' }}</td>
+    <td>
+      <a href="/cadastro_motivo_refugo?id={{ motivo.IDMotivoRefugo }}" style="
+        padding: 0.25rem 0.6rem;
+        background-color: #e0e0e0;
+        color: #2e7d32;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        text-decoration: none;
+        font-weight: 500;
+      ">Editar</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Menu Principal{% endblock %}
+{% block header_title %}Menu Principal{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+  .welcome {
+    text-align: center;
+    margin-top: 2rem;
+  }
+
+  .welcome h1 {
+    color: #2e7d32;
+    font-size: 2.2rem;
+  }
+
+  .welcome-user {
+    margin: 1rem auto;
+    font-size: 1.1rem;
+    color: #444;
+  }
+
+  .nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
+    width: 90%;
+    max-width: 1000px;
+    margin: 2.5rem auto;
+  }
+
+  .nav-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 2rem 1rem;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .nav-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  }
+
+  .nav-card i {
+    font-size: 2.5rem;
+    color: #2e7d32;
+    margin-bottom: 1rem;
+  }
+
+  .nav-card a {
+    text-decoration: none;
+    color: #2e7d32;
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: block;
+  }
+</style>
+
+<div class="welcome">
+  <h1>PLANNER - Controle em Automação</h1>
+  <p class="welcome-user">Escolha um módulo abaixo para começar</p>
+</div>
+
+<div class="nav-grid">
+  <div class="nav-card">
+    <i class="fas fa-cube"></i>
+    <a href="/modelagem">Modelagem</a>
+  </div>
+  <div class="nav-card">
+    <i class="fas fa-industry"></i>
+    <a href="/cadastro_producao">Cadastro Produção</a>
+  </div>
+  <div class="nav-card">
+    <i class="fas fa-cogs"></i>
+    <a href="/cadastro_sistema">Sistema</a>
+  </div>
+  <div class="nav-card">
+    <i class="fas fa-chart-bar"></i>
+    <a href="/relatorios">Relatórios</a>
+  </div>
+  <div class="nav-card">
+    <i class="fas fa-tachometer-alt"></i>
+    <a href="/dashboard">Dashboard</a>
+  </div>
+</div>
+
+{% endblock %}

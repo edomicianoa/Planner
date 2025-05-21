@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro de Grupo de Motivos de Refugo{% endblock %}
+{% block header_title %}Cadastro de Grupos de Refugo{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <input type="hidden" name="id_grupo" value="{{ grupo_editar.IDGrupoMotivoRefugo if grupo_editar else '' }}">
+
+  <label>Código:</label>
+  <input type="text" name="codigo" value="{{ grupo_editar.Codigo if grupo_editar else '' }}" required>
+
+  <label>Nome do Grupo:</label>
+  <input type="text" name="nome" value="{{ grupo_editar.NomeGrupo if grupo_editar else '' }}" required>
+
+  <label>Descrição:</label>
+  <input type="text" name="descricao" value="{{ grupo_editar.Descricao if grupo_editar else '' }}">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold;">
+        <input type="checkbox" name="ativo" {% if not grupo_editar or grupo_editar.Ativo %}checked{% endif %}>
+        Ativo
+      </label>
+
+      <button type="submit" style="
+        padding: 0.5rem 1.1rem;
+        background-color: #2e7d32;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.95rem;
+      ">{{ 'Atualizar' if grupo_editar else 'Salvar' }}</button>
+    </div>
+  </div>
+</form>
+
+<h2>Grupos de Refugo Cadastrados</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Código</th>
+    <th>Nome</th>
+    <th>Descrição</th>
+    <th>Status</th>
+    <th>Ação</th>
+  </tr>
+  {% for grupo in grupos %}
+  <tr>
+    <td>{{ grupo.IDGrupoMotivoRefugo }}</td>
+    <td>{{ grupo.Codigo }}</td>
+    <td>{{ grupo.NomeGrupo }}</td>
+    <td>{{ grupo.Descricao }}</td>
+    <td>{{ 'Ativo' if grupo.Ativo else 'Inativo' }}</td>
+    <td>
+      <a href="/cadastro_grupo_motivo_refugo?id={{ grupo.IDGrupoMotivoRefugo }}" style="
+        padding: 0.25rem 0.6rem;
+        background-color: #e0e0e0;
+        color: #2e7d32;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        text-decoration: none;
+        font-weight: 500;
+      ">Editar</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

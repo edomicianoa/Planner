@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro de Grupo de Parada{% endblock %}
+{% block header_title %}Cadastro de Grupo de Parada{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <label>Nome do Grupo:</label>
+  <input type="text" name="nome" value="{{ grupo_editar.NomeGrupo if grupo_editar else '' }}" required>
+
+  <label>Descrição:</label>
+  <input type="text" name="descricao" value="{{ grupo_editar.Descricao if grupo_editar else '' }}">
+
+  <div style="display: flex; align-items: flex-end; gap: 1rem; margin-top: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; height: 40px;">
+      <input type="checkbox" name="ativo" id="ativo" {% if not grupo_editar or grupo_editar.Ativo %}checked{% endif %} style="margin: 0;">
+      <label for="ativo" style="font-weight: bold; margin: 0;">Ativo</label>
+    </div>
+    <button type="submit" style="
+      padding: 0.55rem 1.3rem;
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      height: 40px;
+    ">Salvar</button>
+  </div>
+</form>
+
+<h2>Grupos de Parada Cadastrados</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Nome</th>
+    <th>Descrição</th>
+    <th>Status</th>
+    <th>Ação</th>
+  </tr>
+  {% for g in grupos %}
+  <tr>
+    <td>{{ g.IDGrupoParada }}</td>
+    <td>{{ g.NomeGrupo }}</td>
+    <td>{{ g.Descricao }}</td>
+    <td>{% if g.Ativo %}Ativo{% else %}Inativo{% endif %}</td>
+    <td>
+      <a href="/cadastro_grupo_parada?id={{ g.IDGrupoParada }}" style="
+        padding: 0.25rem 0.6rem;
+        background-color: #e0e0e0;
+        color: #2e7d32;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        text-decoration: none;
+        font-weight: 500;
+      ">Editar</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

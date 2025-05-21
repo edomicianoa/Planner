@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro de Turno{% endblock %}
+{% block header_title %}Cadastro de Turno{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <input type="hidden" name="id_turno" value="{{ turno_editar.IDTurno if turno_editar else '' }}">
+
+  <label>Código:</label>
+  <input type="text" name="codigo" value="{{ turno_editar.Codigo if turno_editar else '' }}" required>
+
+  <label>Nome do Turno:</label>
+  <input type="text" name="nome" value="{{ turno_editar.NomeTurno if turno_editar else '' }}" required>
+
+  <label>Hora Início:</label>
+  <input type="time" name="hora_inicio" value="{{ turno_editar.HoraInicio if turno_editar else '' }}" required>
+
+  <label>Hora Fim:</label>
+  <input type="time" name="hora_fim" value="{{ turno_editar.HoraFim if turno_editar else '' }}" required>
+
+  <label>Dias da Semana:</label>
+  <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
+    <label><input type="checkbox" name="dom" {% if turno_editar and 'Dom' in turno_editar.Semana %}checked{% endif %}> Dom</label>
+    <label><input type="checkbox" name="seg" {% if turno_editar and 'Seg' in turno_editar.Semana %}checked{% endif %}> Seg</label>
+    <label><input type="checkbox" name="ter" {% if turno_editar and 'Ter' in turno_editar.Semana %}checked{% endif %}> Ter</label>
+    <label><input type="checkbox" name="qua" {% if turno_editar and 'Qua' in turno_editar.Semana %}checked{% endif %}> Qua</label>
+    <label><input type="checkbox" name="qui" {% if turno_editar and 'Qui' in turno_editar.Semana %}checked{% endif %}> Qui</label>
+    <label><input type="checkbox" name="sex" {% if turno_editar and 'Sex' in turno_editar.Semana %}checked{% endif %}> Sex</label>
+    <label><input type="checkbox" name="sab" {% if turno_editar and 'Sab' in turno_editar.Semana %}checked{% endif %}> Sáb</label>
+    <label><input type="checkbox" name="todos" {% if turno_editar and turno_editar.Todos %}checked{% endif %}> Todos</label>
+  </div>
+
+  <label style="margin-top: 1rem;">
+    <input type="checkbox" name="ativo" {% if not turno_editar or turno_editar.Ativo %}checked{% endif %}>
+    Ativo
+  </label>
+
+  <button type="submit" style="
+    padding: 0.5rem 1.1rem;
+    background-color: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+    margin-top: 1rem;
+  ">{{ 'Atualizar' if turno_editar else 'Salvar' }}</button>
+</form>
+
+<h2>Turnos Cadastrados</h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Nome</th>
+    <th>Código</th>
+    <th>Início</th>
+    <th>Fim</th>
+    <th>Dias</th>
+    <th>Todos</th>
+    <th>Status</th>
+    <th>Ação</th>
+  </tr>
+  {% for t in turnos %}
+  <tr>
+    <td>{{ t.IDTurno }}</td>
+    <td>{{ t.NomeTurno }}</td>
+    <td>{{ t.Codigo }}</td>
+    <td>{{ t.HoraInicio }}</td>
+    <td>{{ t.HoraFim }}</td>
+    <td>{{ t.Semana }}</td>
+    <td>{{ 'Sim' if t.Todos else 'Não' }}</td>
+    <td>{{ 'Ativo' if t.Ativo else 'Inativo' }}</td>
+    <td>
+      <a href="/cadastro_turno?id={{ t.IDTurno }}" style="
+        padding: 0.25rem 0.6rem;
+        background-color: #e0e0e0;
+        color: #2e7d32;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        text-decoration: none;
+        font-weight: 500;
+      ">Editar</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
