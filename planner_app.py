@@ -7,6 +7,7 @@ from functools import wraps
 from collections import defaultdict
 import threading
 import io
+import time
 import logging # Nova importação para logging
 
 # Configurar logging para a aplicação
@@ -2878,6 +2879,117 @@ def alterar_status_grupo_alarme(id_grupo, status):
     """, (status, id_grupo))
     conn.commit()
     return redirect(url_for('cadastro_grupo_alarme'))
+    
+def verificar_inatividade_maquinas():
+    try:
+        # Obter máquinas ativas
+        cursor.execute("SELECT IDMaquina FROM TBL_Recurso WHERE Ativo = 1")
+        maquinas_ativas = cursor.fetchall()
+        
+        for maquina in maquinas_ativas:
+            id_maquina = maquina[0]
+            
+            # Verificar o último pulso registrado para esta máquina
+            cursor.execute("""
+                SELECT TOP 1 DataHoraEvento
+                FROM TBL_EventoProducao
+                WHERE IDMaquina = ?
+                ORDER BY DataHoraEvento DESC
+            """, id_maquina)
+            
+            ultimo_pulso = cursor.fetchone()
+            
+            # Verificar o status atual da máquina
+            cursor.execute("""
+                SELECT TOP 1 Status
+                FROM TBL_StatusMaquina
+                WHERE IDMaquina = ?
+                ORDER BY DataHoraRegistro DESC
+            """, id_maquina)
+            
+            status_atual = cursor.fetchone()
+            
+            if ultimo_pulso:
+                tempo_desde_ultimo_pulso = (datetime.now() - ultimo_pulso.DataHoraEvento).total_seconds()
+                
+                # Se não houver pulso nos últimos 10 segundos e a máquina não estiver já em parada, registrar parada
+                if tempo_desde_ultimo_pulso > 10 and (not status_atual or status_atual.Status == 1):
+                    logger.warning(f"Máquina {id_maquina} sem pulso há {tempo_desde_ultimo_pulso:.2f} segundos. Registrando parada.")
+                    registrar_parada_por_inatividade(id_maquina)
+            else:
+                logger.warning(f"Máquina {id_maquina} não tem registros de pulso.")
+                
+    except Exception as e:
+        logger.error(f"Erro ao verificar inatividade das máquinas: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())   
+
+def registrar_parada_por_inatividade(id_maquina):
+    try:
+        # Obter timestamp atual
+        timestamp = datetime.now()
+        
+        # Identificar o turno atual
+        id_turno_atual = identificar_turno()
+        
+        # ID do motivo de parada automática (ajuste conforme necessário)
+        id_motivo_parada_automatica = 11  # Substitua pelo ID correto do seu banco de dados
+        
+        # Verificar o último status registrado para esta máquina
+        cursor.execute("""
+            SELECT TOP 1 IDStatus, Status, DataHoraInicio 
+            FROM TBL_StatusMaquina 
+            WHERE IDMaquina = ? 
+            ORDER BY DataHoraRegistro DESC
+        """, id_maquina)
+        
+        ultimo_status_db = cursor.fetchone()
+        
+        # Se o último status for "em execução", fechá-lo
+        if ultimo_status_db and ultimo_status_db.Status == 1:
+            cursor.execute("""
+                UPDATE TBL_StatusMaquina 
+                SET DataHoraFim = ?, 
+                    DiffStatusSegundos = DATEDIFF(SECOND, DataHoraInicio, ?)
+                WHERE IDStatus = ?
+            """, timestamp, timestamp, ultimo_status_db.IDStatus)
+        
+        # Inserir o novo status de parada na TBL_StatusMaquina
+        cursor.execute("""
+            INSERT INTO TBL_StatusMaquina 
+            (IDMaquina, Status, DataHoraInicio, DataHoraRegistro, IDMotivoParada, IDTurno, ObsEvento, DescricaoStatus) 
+            VALUES (?, 0, ?, ?, ?, ?, ?, ?)
+        """, id_maquina, timestamp, timestamp, id_motivo_parada_automatica, id_turno_atual, "Parada automática por inatividade", "Parada")
+        
+        # Inserir no histórico de eventos (TBL_EventoStatus)
+        cursor.execute("""
+            INSERT INTO TBL_EventoStatus 
+            (IDMaquina, Status, DataHoraEvento, IDMotivoParada, ObsEvento) 
+            VALUES (?, 0, ?, ?, ?)
+        """, id_maquina, timestamp, id_motivo_parada_automatica, "Parada automática por inatividade")
+        
+        conn.commit()
+        logger.info(f"Parada automática registrada para máquina {id_maquina}")
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Erro ao registrar parada automática: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())   
+
+# Função para executar verificação de inatividade em um thread separado
+def verificar_inatividade_periodicamente():
+    while True:
+        try:
+            verificar_inatividade_maquinas()
+            time.sleep(5)  # Verificar a cada 5 segundos
+        except Exception as e:
+            logger.error(f"Erro no thread de verificação de inatividade: {str(e)}")
+            time.sleep(5)  # Continuar tentando mesmo em caso de erro
+
+# Iniciar o thread de verificação de inatividade
+thread_inatividade = threading.Thread(target=verificar_inatividade_periodicamente, daemon=True)
+thread_inatividade.start()        
     
 @app.route('/cadastro_motivo_alarme', methods=['GET', 'POST'])
 @login_requerido
