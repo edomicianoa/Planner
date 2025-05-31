@@ -133,29 +133,55 @@ def gravar_buffer_agrupado():
             buffer_agregado.clear()
 
 # Função existente no seu arquivo
-def identificar_turno():
-    agora = datetime.now().time()
-    hoje = datetime.now().date()
-
-    cursor.execute("SELECT IDTurno, HoraInicio, HoraFim FROM TBL_Turno WHERE Ativo = 1")
-    turnos = cursor.fetchall()
-
-    for turno in turnos:
-        hora_inicio = turno.HoraInicio
-        hora_fim = turno.HoraFim
-
-        if hora_inicio < hora_fim:
-            # Turno normal (ex: 06:00 às 14:00)
-            if hora_inicio <= agora < hora_fim:
-                return turno.IDTurno
+def identificar_turno(conn_thread=None, cursor_thread=None):
+    try:
+        # Se não foram fornecidos conn_thread e cursor_thread, usar as variáveis globais
+        if conn_thread is None or cursor_thread is None:
+            global conn, cursor
+            cursor_local = cursor
         else:
-            # Turno que passa da meia-noite (ex: 22:00 às 06:00)
-            if agora >= hora_inicio or agora < hora_fim:
-                return turno.IDTurno
-              
-    return None  # Nenhum turno encontrado
-    
-gravar_buffer_agrupado()      
+            cursor_local = cursor_thread
+        
+        # Obter a hora atual
+        agora = datetime.now()
+        hora_atual = agora.time()
+        
+        # Buscar o turno atual com base na hora
+        cursor_local.execute("""
+            SELECT IDTurno 
+            FROM TBL_Turno 
+            WHERE CAST(HoraInicio AS TIME) <= ? 
+            AND CAST(HoraFim AS TIME) >= ? 
+            AND Ativo = 1
+        """, hora_atual, hora_atual)
+        
+        turno = cursor_local.fetchone()
+        
+        if turno:
+            logger.info(f"ID do turno atual identificado: {turno[0]}")
+            return turno[0]  # IDTurno é o primeiro campo (índice 0)
+        else:
+            # Se não encontrou um turno, verifica se a hora atual está após a hora de fim do último turno
+            # e antes da hora de início do primeiro turno do dia seguinte
+            cursor_local.execute("""
+                SELECT TOP 1 IDTurno 
+                FROM TBL_Turno 
+                WHERE Ativo = 1 
+                ORDER BY CAST(HoraFim AS TIME) DESC
+            """)
+            
+            ultimo_turno = cursor_local.fetchone()
+            
+            if ultimo_turno:
+                logger.info(f"Fora do horário de turnos ativos. Usando o último turno: {ultimo_turno[0]}")
+                return ultimo_turno[0]  # IDTurno é o primeiro campo (índice 0)
+            else:
+                logger.warning("Nenhum turno encontrado. Retornando None.")
+                return None
+                
+    except Exception as e:
+        logger.error(f"Erro ao identificar turno: {str(e)}")
+        return None      
 
   
 # Decoradores (existente no seu arquivo)
@@ -2601,6 +2627,38 @@ def cadastro_grupo_parada():
     grupos = cursor.fetchall()
 
     return render_template('cadastro_grupo_parada.html', grupos=grupos, grupo_editar=grupo_editar)
+    
+def obter_motivo_parada(id_maquina):
+    try:
+        cursor.execute("""
+            SELECT TOP 1 SM.IDMotivoParada, MP.Descricao
+            FROM TBL_StatusMaquina SM
+            LEFT JOIN TBL_MotivoParada MP ON SM.IDMotivoParada = MP.IDMotivoParada
+            WHERE SM.IDMaquina = ? 
+            AND SM.Status = 0
+            AND SM.DataHoraFim IS NULL
+            ORDER BY SM.DataHoraRegistro DESC
+        """, id_maquina)
+        
+        motivo = cursor.fetchone()
+        
+        if motivo and motivo[0]:
+            return {
+                'id': motivo[0],
+                'descricao': motivo[1] if motivo[1] else "Motivo não especificado"
+            }
+        else:
+            return {
+                'id': None,
+                'descricao': "Parada não identificada"
+            }
+            
+    except Exception as e:
+        logger.error(f"Erro ao obter motivo de parada: {str(e)}")
+        return {
+            'id': None,
+            'descricao': "Erro ao obter motivo"
+        }    
 
 @app.route('/cadastro_motivo_parada', methods=['GET', 'POST'])
 def cadastro_motivo_parada():
@@ -2886,45 +2944,120 @@ def alterar_status_grupo_alarme(id_grupo, status):
     
 def verificar_inatividade_maquinas():
     try:
+        # Criar uma nova conexão para este thread
+        conn_thread = pyodbc.connect(
+            'DRIVER={ODBC Driver 17 for SQL Server};'
+            'SERVER=192.168.1.110;'
+            'DATABASE=PLN_PRD;'
+            'UID=sa;'
+            'PWD=planner123;'
+        )
+        cursor_thread = conn_thread.cursor()
+        
         # Obter máquinas ativas
-        cursor.execute("SELECT IDMaquina FROM TBL_Recurso WHERE Ativo = 1")
-        maquinas_ativas = cursor.fetchall()
+        cursor_thread.execute("SELECT IDMaquina FROM TBL_Recurso WHERE Ativo = 1")
+        maquinas_ativas = cursor_thread.fetchall()
         
         for maquina in maquinas_ativas:
             id_maquina = maquina[0]
             
             # Verificar o último pulso registrado para esta máquina
-            cursor.execute("""
+            cursor_thread.execute("""
                 SELECT TOP 1 DataHoraEvento
                 FROM TBL_EventoProducao
                 WHERE IDMaquina = ?
                 ORDER BY DataHoraEvento DESC
             """, id_maquina)
             
-            ultimo_pulso = cursor.fetchone()
+            ultimo_pulso = cursor_thread.fetchone()
             
             # Verificar o status atual da máquina
-            cursor.execute("""
+            cursor_thread.execute("""
                 SELECT TOP 1 Status
                 FROM TBL_StatusMaquina
                 WHERE IDMaquina = ?
                 ORDER BY DataHoraRegistro DESC
             """, id_maquina)
             
-            status_atual = cursor.fetchone()
+            status_atual = cursor_thread.fetchone()
             
             if ultimo_pulso:
                 tempo_desde_ultimo_pulso = (datetime.now() - ultimo_pulso.DataHoraEvento).total_seconds()
                 
                 # Se não houver pulso nos últimos 10 segundos e a máquina não estiver já em parada, registrar parada
-                if tempo_desde_ultimo_pulso > 10 and (not status_atual or status_atual.Status == 1):
+                if tempo_desde_ultimo_pulso > LIMITE_INATIVIDADE_SEGUNDOS and (not status_atual or status_atual.Status == 1):
                     logger.warning(f"Máquina {id_maquina} sem pulso há {tempo_desde_ultimo_pulso:.2f} segundos. Registrando parada.")
-                    registrar_parada_por_inatividade(id_maquina)
+                    registrar_parada_por_inatividade(id_maquina, conn_thread, cursor_thread)
             else:
                 logger.warning(f"Máquina {id_maquina} não tem registros de pulso.")
+        
+        # Fechar a conexão
+        conn_thread.close()
                 
     except Exception as e:
         logger.error(f"Erro ao verificar inatividade das máquinas: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+def registrar_parada_por_inatividade(id_maquina, conn_thread=None, cursor_thread=None):
+    try:
+        # Se não foram fornecidos conn_thread e cursor_thread, usar as variáveis globais
+        if conn_thread is None or cursor_thread is None:
+            global conn, cursor
+            conn_local = conn
+            cursor_local = cursor
+        else:
+            conn_local = conn_thread
+            cursor_local = cursor_thread
+        
+        # Obter timestamp atual
+        timestamp = datetime.now()
+        
+        # Identificar o turno atual
+        id_turno_atual = identificar_turno(conn_local, cursor_local)
+        
+        # Verificar o último status registrado para esta máquina
+        cursor_local.execute("""
+            SELECT TOP 1 IDStatus, Status, DataHoraInicio 
+            FROM TBL_StatusMaquina 
+            WHERE IDMaquina = ? 
+            ORDER BY DataHoraRegistro DESC
+        """, id_maquina)
+        
+        ultimo_status_db = cursor_local.fetchone()
+        
+        # Se o último status for "em execução", fechá-lo
+        if ultimo_status_db and ultimo_status_db.Status == 1:
+            cursor_local.execute("""
+                UPDATE TBL_StatusMaquina 
+                SET DataHoraFim = ?, 
+                    DiffStatusSegundos = DATEDIFF(SECOND, DataHoraInicio, ?)
+                WHERE IDStatus = ?
+            """, timestamp, timestamp, ultimo_status_db.IDStatus)
+        
+        # Inserir o novo status de parada na TBL_StatusMaquina
+        cursor_local.execute("""
+            INSERT INTO TBL_StatusMaquina 
+            (IDMaquina, Status, DataHoraInicio, DataHoraRegistro, IDMotivoParada, IDTurno, ObsEvento, DescricaoStatus) 
+            VALUES (?, 0, ?, ?, ?, ?, ?, ?)
+        """, id_maquina, timestamp, timestamp, ID_MOTIVO_PARADA_AUTOMATICA, id_turno_atual, "Parada automática por inatividade", "Parada")
+        
+        # Inserir no histórico de eventos (TBL_EventoStatus)
+        cursor_local.execute("""
+            INSERT INTO TBL_EventoStatus 
+            (IDMaquina, Status, DataHoraEvento, IDMotivoParada, ObsEvento) 
+            VALUES (?, 0, ?, ?, ?)
+        """, id_maquina, timestamp, ID_MOTIVO_PARADA_AUTOMATICA, "Parada automática por inatividade")
+        
+        conn_local.commit()
+        logger.info(f"Parada automática registrada para máquina {id_maquina}")
+        
+    except Exception as e:
+        if conn_thread:
+            conn_thread.rollback()
+        else:
+            conn.rollback()
+        logger.error(f"Erro ao registrar parada automática: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())   
 
@@ -3258,123 +3391,278 @@ def adicionar_refugo():
         return jsonify({'success': False, 'message': str(e)})
 
 
-def identificar_turno():
-    """
-    Identifica o turno atual com base na hora atual.
-    Retorna o ID do turno atual ou None se não houver turno ativo.
-    """
+def identificar_turno(conn_thread=None, cursor_thread=None):
     try:
-        hora_atual = datetime.now().time()
+        # Se não foram fornecidos conn_thread e cursor_thread, usar as variáveis globais
+        if conn_thread is None or cursor_thread is None:
+            global conn, cursor
+            cursor_local = cursor
+        else:
+            cursor_local = cursor_thread
         
-        # Consulta para encontrar o turno atual
-        cursor.execute("""
-            SELECT IDTurno
-            FROM TBL_Turno
-            WHERE 
-                (
-                    (HoraInicio <= HoraFim AND ? BETWEEN HoraInicio AND HoraFim) OR
-                    (HoraInicio > HoraFim AND (? >= HoraInicio OR ? <= HoraFim))
-                )
-                AND Ativo = 1
-        """, (hora_atual, hora_atual, hora_atual))
+        # Obter a hora atual
+        agora = datetime.now()
+        hora_atual = agora.time()
         
-        row = cursor.fetchone()
-        return row.IDTurno if row else None
+        # Buscar o turno atual com base na hora
+        cursor_local.execute("""
+            SELECT IDTurno 
+            FROM TBL_Turno 
+            WHERE CAST(HoraInicio AS TIME) <= ? 
+            AND CAST(HoraFim AS TIME) >= ? 
+            AND Ativo = 1
+        """, hora_atual, hora_atual)
         
+        turno = cursor_local.fetchone()
+        
+        if turno:
+            logger.info(f"ID do turno atual identificado: {turno.IDTurno}")
+            return turno.IDTurno
+        else:
+            # Se não encontrou um turno, verifica se a hora atual está após a hora de fim do último turno
+            # e antes da hora de início do primeiro turno do dia seguinte
+            cursor_local.execute("""
+                SELECT TOP 1 IDTurno 
+                FROM TBL_Turno 
+                WHERE Ativo = 1 
+                ORDER BY CAST(HoraFim AS TIME) DESC
+            """)
+            
+            ultimo_turno = cursor_local.fetchone()
+            
+            if ultimo_turno:
+                logger.info(f"Fora do horário de turnos ativos. Usando o último turno: {ultimo_turno.IDTurno}")
+                return ultimo_turno.IDTurno
+            else:
+                logger.warning("Nenhum turno encontrado. Retornando None.")
+                return None
+                
     except Exception as e:
-        print(f"Erro ao identificar turno: {e}")
+        logger.error(f"Erro ao identificar turno: {str(e)}")
         return None
+        
+def obter_status_maquina(id_maquina):
+    try:
+        # Verificar se há registros ativos (sem DataHoraFim)
+        cursor.execute("""
+            SELECT TOP 1 Status, IDMotivoParada 
+            FROM TBL_StatusMaquina 
+            WHERE IDMaquina = ? 
+            AND DataHoraFim IS NULL
+            ORDER BY DataHoraRegistro DESC
+        """, id_maquina)
+        
+        status = cursor.fetchone()
+        
+        if status:
+            # Verificar se é uma parada automática por inatividade
+            if status[0] == 0 and status[1] == 11:  # Status 0 (parada) e IDMotivoParada 11 (inatividade)
+                logger.info(f"Máquina {id_maquina} está em parada automática por inatividade")
+                return False  # Retorna False para indicar que está parada
+            else:
+                return status[0] == 1  # True se estiver em execução, False se estiver parada
+        else:
+            # Se não houver status ativo, verificar o último status registrado
+            cursor.execute("""
+                SELECT TOP 1 Status 
+                FROM TBL_StatusMaquina 
+                WHERE IDMaquina = ? 
+                ORDER BY DataHoraRegistro DESC
+            """, id_maquina)
+            
+            ultimo_status = cursor.fetchone()
+            
+            if ultimo_status:
+                return ultimo_status[0] == 1
+            else:
+                return False  # Se não houver status, consideramos como parada
+            
+    except Exception as e:
+        logger.error(f"Erro ao obter status da máquina: {str(e)}")
+        return False  # Em caso de erro, consideramos como parada        
         
 def verificar_inatividade_maquinas():
     try:
+        # Criar uma nova conexão para este thread
+        conn_thread = pyodbc.connect(
+            'DRIVER={ODBC Driver 17 for SQL Server};'
+            'SERVER=192.168.1.110;'
+            'DATABASE=PLN_PRD;'
+            'UID=sa;'
+            'PWD=planner123;'
+        )
+        cursor_thread = conn_thread.cursor()
+        
         # Obter máquinas ativas
-        cursor.execute("SELECT IDMaquina FROM TBL_Recurso WHERE Ativo = 1")
-        maquinas_ativas = cursor.fetchall()
+        cursor_thread.execute("SELECT IDMaquina FROM TBL_Recurso WHERE Ativo = 1")
+        maquinas_ativas = cursor_thread.fetchall()
         
         for maquina in maquinas_ativas:
             id_maquina = maquina[0]
             
             # Verificar o último pulso registrado para esta máquina
-            cursor.execute("""
+            cursor_thread.execute("""
                 SELECT TOP 1 DataHoraEvento
                 FROM TBL_EventoProducao
                 WHERE IDMaquina = ?
                 ORDER BY DataHoraEvento DESC
             """, id_maquina)
             
-            ultimo_pulso = cursor.fetchone()
+            ultimo_pulso = cursor_thread.fetchone()
             
-            # Verificar o status atual da máquina
-            cursor.execute("""
+            # Verificar o status atual da máquina (apenas status ativos)
+            cursor_thread.execute("""
                 SELECT TOP 1 Status
                 FROM TBL_StatusMaquina
                 WHERE IDMaquina = ?
+                AND DataHoraFim IS NULL
                 ORDER BY DataHoraRegistro DESC
             """, id_maquina)
             
-            status_atual = cursor.fetchone()
+            status_atual_row = cursor_thread.fetchone()
+            status_atual = status_atual_row[0] if status_atual_row else None
             
             if ultimo_pulso:
-                tempo_desde_ultimo_pulso = (datetime.now() - ultimo_pulso.DataHoraEvento).total_seconds()
+                tempo_desde_ultimo_pulso = (datetime.now() - ultimo_pulso[0]).total_seconds()
                 
                 # Se não houver pulso nos últimos 10 segundos e a máquina não estiver já em parada, registrar parada
-                if tempo_desde_ultimo_pulso > LIMITE_INATIVIDADE_SEGUNDOS and (not status_atual or status_atual.Status == 1):
+                if tempo_desde_ultimo_pulso > LIMITE_INATIVIDADE_SEGUNDOS and (status_atual is None or status_atual == 1):
                     logger.warning(f"Máquina {id_maquina} sem pulso há {tempo_desde_ultimo_pulso:.2f} segundos. Registrando parada.")
-                    registrar_parada_por_inatividade(id_maquina)
+                    registrar_parada_por_inatividade(id_maquina, conn_thread, cursor_thread)
             else:
                 logger.warning(f"Máquina {id_maquina} não tem registros de pulso.")
+        
+        # Fechar a conexão
+        conn_thread.close()
                 
     except Exception as e:
         logger.error(f"Erro ao verificar inatividade das máquinas: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-
-def registrar_parada_por_inatividade(id_maquina):
+        
+def limpar_registros_duplicados():
     try:
+        # Identificar registros duplicados (mais de um registro ativo para a mesma máquina)
+        cursor.execute("""
+            SELECT IDMaquina, COUNT(*) as NumRegistrosAtivos
+            FROM TBL_StatusMaquina
+            WHERE DataHoraFim IS NULL
+            GROUP BY IDMaquina
+            HAVING COUNT(*) > 1
+        """)
+        
+        maquinas_com_duplicatas = cursor.fetchall()
+        
+        for maquina in maquinas_com_duplicatas:
+            id_maquina = maquina.IDMaquina
+            num_registros = maquina.NumRegistrosAtivos
+            
+            logger.warning(f"Máquina {id_maquina} tem {num_registros} registros de status ativos. Corrigindo...")
+            
+            # Obter todos os registros ativos para esta máquina, ordenados por data
+            cursor.execute("""
+                SELECT IDStatus, Status, DataHoraInicio
+                FROM TBL_StatusMaquina
+                WHERE IDMaquina = ? AND DataHoraFim IS NULL
+                ORDER BY DataHoraRegistro ASC
+            """, id_maquina)
+            
+            registros = cursor.fetchall()
+            
+            # Manter apenas o registro mais recente
+            for i in range(len(registros) - 1):
+                registro = registros[i]
+                id_status = registro.IDStatus
+                data_hora_inicio = registro.DataHoraInicio
+                
+                # Fechar este registro com a data/hora de início do próximo registro
+                data_hora_fim = registros[i + 1].DataHoraInicio
+                
+                cursor.execute("""
+                    UPDATE TBL_StatusMaquina
+                    SET DataHoraFim = ?,
+                        DiffStatusSegundos = DATEDIFF(SECOND, DataHoraInicio, ?)
+                    WHERE IDStatus = ?
+                """, data_hora_fim, data_hora_fim, id_status)
+                
+                logger.info(f"Fechado registro de status duplicado ID {id_status} para máquina {id_maquina}")
+            
+        conn.commit()
+        
+    except Exception as e:
+        logger.error(f"Erro ao limpar registros duplicados: {str(e)}")     
+
+def limpar_registros_duplicados_periodicamente():
+    while True:
+        try:
+            limpar_registros_duplicados()
+            time.sleep(60)  # Executar a cada minuto
+        except Exception as e:
+            logger.error(f"Erro ao executar limpeza periódica: {str(e)}")
+            time.sleep(60)  # Continuar tentando mesmo em caso de erro
+
+# Iniciar o thread de limpeza de registros duplicados
+thread_limpeza = threading.Thread(target=limpar_registros_duplicados_periodicamente, daemon=True)
+thread_limpeza.start()        
+
+def registrar_parada_por_inatividade(id_maquina, conn_thread=None, cursor_thread=None):
+    try:
+        # Se não foram fornecidos conn_thread e cursor_thread, usar as variáveis globais
+        if conn_thread is None or cursor_thread is None:
+            global conn, cursor
+            conn_local = conn
+            cursor_local = cursor
+        else:
+            conn_local = conn_thread
+            cursor_local = cursor_thread
+        
         # Obter timestamp atual
         timestamp = datetime.now()
         
         # Identificar o turno atual
-        id_turno_atual = identificar_turno()
+        id_turno_atual = identificar_turno(conn_local, cursor_local)
         
         # Verificar o último status registrado para esta máquina
-        cursor.execute("""
+        cursor_local.execute("""
             SELECT TOP 1 IDStatus, Status, DataHoraInicio 
             FROM TBL_StatusMaquina 
             WHERE IDMaquina = ? 
             ORDER BY DataHoraRegistro DESC
         """, id_maquina)
         
-        ultimo_status_db = cursor.fetchone()
+        ultimo_status_db = cursor_local.fetchone()
         
         # Se o último status for "em execução", fechá-lo
-        if ultimo_status_db and ultimo_status_db.Status == 1:
-            cursor.execute("""
+        if ultimo_status_db and ultimo_status_db[1] == 1:  # Status é o segundo campo (índice 1)
+            cursor_local.execute("""
                 UPDATE TBL_StatusMaquina 
                 SET DataHoraFim = ?, 
                     DiffStatusSegundos = DATEDIFF(SECOND, DataHoraInicio, ?)
                 WHERE IDStatus = ?
-            """, timestamp, timestamp, ultimo_status_db.IDStatus)
+            """, timestamp, timestamp, ultimo_status_db[0])  # IDStatus é o primeiro campo (índice 0)
         
         # Inserir o novo status de parada na TBL_StatusMaquina
-        cursor.execute("""
+        cursor_local.execute("""
             INSERT INTO TBL_StatusMaquina 
             (IDMaquina, Status, DataHoraInicio, DataHoraRegistro, IDMotivoParada, IDTurno, ObsEvento, DescricaoStatus) 
             VALUES (?, 0, ?, ?, ?, ?, ?, ?)
         """, id_maquina, timestamp, timestamp, ID_MOTIVO_PARADA_AUTOMATICA, id_turno_atual, "Parada automática por inatividade", "Parada")
         
         # Inserir no histórico de eventos (TBL_EventoStatus)
-        cursor.execute("""
+        cursor_local.execute("""
             INSERT INTO TBL_EventoStatus 
             (IDMaquina, Status, DataHoraEvento, IDMotivoParada, ObsEvento) 
             VALUES (?, 0, ?, ?, ?)
         """, id_maquina, timestamp, ID_MOTIVO_PARADA_AUTOMATICA, "Parada automática por inatividade")
         
-        conn.commit()
+        conn_local.commit()
         logger.info(f"Parada automática registrada para máquina {id_maquina}")
         
     except Exception as e:
-        conn.rollback()
+        if conn_thread:
+            conn_thread.rollback()
+        else:
+            conn.rollback()
         logger.error(f"Erro ao registrar parada automática: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
@@ -3424,6 +3712,7 @@ def reconciliar_status_maquinas():
                 WHERE IDMaquina = ?
                 AND Status = 0
                 AND DataHoraFim IS NULL
+                AND (IDMotivoParada IS NULL OR IDMotivoParada <> 11) -- Excluir paradas automáticas por inatividade
             """, id_maquina)
             
             # Inserir novo status de execução
