@@ -1,0 +1,1505 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard de Produção{% endblock %}
+
+{% block header_title %}Dashboard de Produção{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  <!-- Filtro de Setor -->
+  <div class="filtro-card">
+    <div class="filtro-header">
+      <div class="filtro-title">
+        <i class="bi bi-funnel"></i>
+        <h3>Filtros</h3>
+      </div>
+      
+      <div class="filtro-actions">
+        {% if setor_selecionado %}
+        <a href="{{ url_for('dashboard') }}" class="btn-limpar-filtro">
+          <i class="bi bi-x-circle"></i> Limpar Filtros
+        </a>
+        {% endif %}
+        
+        <form id="filtroSetorForm" method="GET" action="{{ url_for('dashboard') }}" class="filtro-form">
+          <label for="setor">Setor:</label>
+          <select name="setor" id="setor" onchange="this.form.submit()">
+            <option value="">Todos os Setores</option>
+            {% for s in setores %}
+            <option value="{{ s.IDSetor }}" {% if setor_selecionado == s.IDSetor %}selected{% endif %}>
+              {{ s.Nome }} ({{ s.Codigo }})
+            </option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+    </div>
+    
+    <div class="filtro-info">
+      <span class="recursos-contador">
+        <i class="bi bi-tools"></i> {{ recursos|length }} recurso(s) exibido(s)
+        {% if setor_selecionado %}
+        no setor selecionado
+        {% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div class="dashboard-header">
+    <h1 class="dashboard-title">Relatório de Produção - Dashboard Gerencial</h1>
+  </div>
+
+  <div class="recursos-grid">
+    {% for recurso in recursos %}
+    <div class="recurso-card" id="recurso-{{ recurso.IDMaquina }}">
+      <!-- Mini Card (Visível por padrão) -->
+      <div class="recurso-mini">
+        <div class="recurso-header">
+          <div class="recurso-title">
+            <h2>{{ recurso.NomeMaquina }}</h2>
+            <span class="recurso-codigo">{{ recurso.CodigoInterno }}</span>
+            {% if recurso.NomeSetor %}
+            <span class="setor-badge">{{ recurso.NomeSetor }}</span>
+            {% endif %}
+          </div>
+          
+          <div class="recurso-status 
+            {% if recurso.StatusAtual == 1 %}status-running
+            {% elif recurso.StatusAtual == 0 %}status-stopped
+            {% else %}status-unknown{% endif %}">
+            {% if recurso.StatusAtual == 1 %}EM EXECUÇÃO
+            {% elif recurso.StatusAtual == 0 %}PARADO
+            {% else %}SEM STATUS{% endif %}
+          </div>
+        </div>
+        
+        <!-- Mini Indicadores -->
+        <div class="mini-indicadores">
+          <div class="mini-indicador">
+            <span class="mini-label">OEE</span>
+            <span class="mini-value 
+              {% if recurso.OEE >= recurso.MetaOEE %}value-success
+              {% elif recurso.OEE >= 80 %}value-warning
+              {% else %}value-danger{% endif %}">
+              {{ "%.1f"|format(recurso.OEE or 0) }}%
+            </span>
+          </div>
+          
+          <div class="mini-indicador">
+            <span class="mini-label">Ordem</span>
+            <span class="mini-value">{{ recurso.OrdemAtual or '---' }}</span>
+          </div>
+          
+          <div class="mini-indicador">
+            <span class="mini-label">Produzido</span>
+            <span class="mini-value">{{ recurso.QuantidadeProduzida|round|int or 0 }}</span>
+          </div>
+        </div>
+        
+        <div class="mini-footer" onclick="expandirCard({{ recurso.IDMaquina }})">
+          <span class="expand-text">Clique para expandir</span>
+          <i class="bi bi-chevron-down expand-icon"></i>
+        </div>
+      </div>
+      
+      <!-- Card Expandido (Oculto por padrão) -->
+      <div class="recurso-expandido">
+        <!-- Seção de indicadores -->
+        <div class="indicadores-section">
+          <div class="indicador-card oee">
+            <div class="indicador-header">
+              <div class="indicador-title">OEE</div>
+              <div class="indicador-value 
+                {% if recurso.OEE >= recurso.MetaOEE %}value-success
+                {% elif recurso.OEE >= 80 %}value-warning
+                {% else %}value-danger{% endif %}">
+                {{ "%.1f"|format(recurso.OEE or 0) }}%
+              </div>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: {{ recurso.OEE or 0 }}%;
+                background-color: 
+                {% if recurso.OEE >= recurso.MetaOEE %}var(--success-color)
+                {% elif recurso.OEE >= 80 %}var(--warning-color)
+                {% else %}var(--danger-color){% endif %};">
+              </div>
+            </div>
+            <div class="indicador-meta">Meta: {{ recurso.MetaOEE }}%</div>
+          </div>
+          
+          <div class="indicadores-grid">
+            <div class="indicador-card">
+              <div class="indicador-header">
+                <div class="indicador-title">Qualidade</div>
+                <div class="indicador-value 
+                  {% if recurso.Qualidade >= recurso.MetaQualidade %}value-success
+                  {% elif recurso.Qualidade >= 80 %}value-warning
+                  {% else %}value-danger{% endif %}">
+                  {{ "%.1f"|format(recurso.Qualidade or 0) }}%
+                </div>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ recurso.Qualidade or 0 }}%;
+                  background-color: 
+                  {% if recurso.Qualidade >= recurso.MetaQualidade %}var(--success-color)
+                  {% elif recurso.Qualidade >= 80 %}var(--warning-color)
+                  {% else %}var(--danger-color){% endif %};">
+                </div>
+              </div>
+              <div class="indicador-meta">Meta: {{ recurso.MetaQualidade }}%</div>
+            </div>
+            
+            <div class="indicador-card">
+              <div class="indicador-header">
+                <div class="indicador-title">Disponibilidade</div>
+                <div class="indicador-value 
+                  {% if recurso.Disponibilidade >= recurso.MetaDisponibilidade %}value-success
+                  {% elif recurso.Disponibilidade >= 80 %}value-warning
+                  {% else %}value-danger{% endif %}">
+                  {{ "%.1f"|format(recurso.Disponibilidade or 0) }}%
+                </div>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ recurso.Disponibilidade or 0 }}%;
+                  background-color: 
+                  {% if recurso.Disponibilidade >= recurso.MetaDisponibilidade %}var(--success-color)
+                  {% elif recurso.Disponibilidade >= 80 %}var(--warning-color)
+                  {% else %}var(--danger-color){% endif %};">
+                </div>
+              </div>
+              <div class="indicador-meta">Meta: {{ recurso.MetaDisponibilidade }}%</div>
+            </div>
+            
+            <div class="indicador-card">
+              <div class="indicador-header">
+                <div class="indicador-title">Performance</div>
+                <div class="indicador-value 
+                  {% if recurso.Performance >= recurso.MetaPerformance %}value-success
+                  {% elif recurso.Performance >= 80 %}value-warning
+                  {% else %}value-danger{% endif %}">
+                  {{ "%.1f"|format(recurso.Performance or 0) }}%
+                </div>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ recurso.Performance or 0 }}%;
+                  background-color: 
+                  {% if recurso.Performance >= recurso.MetaPerformance %}var(--success-color)
+                  {% elif recurso.Performance >= 80 %}var(--warning-color)
+                  {% else %}var(--danger-color){% endif %};">
+                </div>
+              </div>
+              <div class="indicador-meta">Meta: {{ recurso.MetaPerformance }}%</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Seção de informações da ordem -->
+        <div class="ordem-section">
+          <div class="ordem-header">
+            <h3>Informações da Ordem</h3>
+            <div class="ordem-badge">{{ recurso.OrdemAtual or 'Sem ordem ativa' }}</div>
+          </div>
+          
+          <div class="ordem-grid">
+            <div class="ordem-item">
+              <div class="ordem-label">Turno</div>
+              <div class="ordem-value">{{ recurso.TurnoAtual or '---' }}</div>
+            </div>
+            
+            <div class="ordem-item">
+              <div class="ordem-label">Produto</div>
+              <div class="ordem-value">{{ recurso.CodigoProduto or '---' }} - {{ recurso.NomeProduto or '---' }}</div>
+            </div>
+            
+            <div class="ordem-item">
+              <div class="ordem-label">Qtd. Planejada</div>
+              <div class="ordem-value">{{ recurso.QuantidadePlanejada or '---' }}</div>
+            </div>
+            
+            <div class="ordem-item">
+              <div class="ordem-label">Vel. Planejada</div>
+              <div class="ordem-value">{{ recurso.VelocidadePlanejada|round|int or 0 }} un/min</div>
+            </div>
+            
+            <div class="ordem-item">
+              <div class="ordem-label">Vel. Real</div>
+              <div class="ordem-value">{{ recurso.VelocidadeReal|round|int or 0 }} un/min</div>
+            </div>
+            
+            <div class="ordem-item">
+              <div class="ordem-label">Período</div>
+              <div class="ordem-value">
+                {{ recurso.DataInicio.strftime('%d/%m/%Y') if recurso.DataInicio else '---' }} até
+                {{ recurso.DataFim.strftime('%d/%m/%Y') if recurso.DataFim else '---' }}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Seção de produção -->
+        <div class="producao-section">
+          <div class="producao-grid">
+            <div class="producao-item">
+              <div class="producao-icon producao-ok">
+                <i class="bi bi-box-seam"></i>
+              </div>
+              <div class="producao-content">
+                <div class="producao-label">Produzido</div>
+                <div class="producao-value">{{ recurso.QuantidadeProduzida|round|int or 0 }} unidades</div>
+              </div>
+              <button class="btn-action" onclick="abrirModalProducao({{ recurso.IDMaquina }}, 'unidade', event)">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+            
+            <div class="producao-item">
+              <div class="producao-icon producao-caixas">
+                <i class="bi bi-box"></i>
+              </div>
+              <div class="producao-content">
+                <div class="producao-label">Caixas</div>
+                <div class="producao-value">{{ recurso.CaixasProduzidas|round|int or 0 }} caixas</div>
+              </div>
+              <button class="btn-action" onclick="abrirModalProducao({{ recurso.IDMaquina }}, 'caixa', event)">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+            
+            <div class="producao-item">
+              <div class="producao-icon producao-refugo">
+                <i class="bi bi-trash"></i>
+              </div>
+              <div class="producao-content">
+                <div class="producao-label">Refugo</div>
+                <div class="producao-value">{{ recurso.QuantidadeRefugada|round|int or 0 }} unidades</div>
+              </div>
+              <button class="btn-action btn-refugo" onclick="abrirModalRefugo({{ recurso.IDMaquina }}, event)">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Seção de ações -->
+        <div class="acoes-section">
+          <div class="acoes-grid">
+            <a class="btn-dashboard btn-adicionar" href="{{ url_for('adicionar_op', id_maquina=recurso.IDMaquina) }}" onclick="event.stopPropagation()">
+              <i class="bi bi-plus-circle"></i> Adicionar OP
+            </a>
+            <a class="btn-dashboard btn-fila" href="/fila_ordens/{{ recurso.IDMaquina }}" onclick="event.stopPropagation()">
+              <i class="bi bi-list-check"></i> Fila de Ordens
+            </a>
+            
+            {% if recurso.OrdemAtual %}
+            <button class="btn-dashboard btn-interromper" data-id="{{ recurso.IDMaquina }}" onclick="interromperOP({{ recurso.IDMaquina }}, event)">
+              <i class="bi bi-pause-circle"></i> Interromper OP
+            </button>
+            <button class="btn-dashboard btn-finalizar" data-id="{{ recurso.IDMaquina }}" onclick="finalizarOP({{ recurso.IDMaquina }}, event)">
+              <i class="bi bi-check-circle"></i> Finalizar OP
+            </button>
+            {% else %}
+            <button class="btn-dashboard btn-interromper disabled" disabled>
+              <i class="bi bi-pause-circle"></i> Interromper OP
+            </button>
+            <button class="btn-dashboard btn-finalizar disabled" disabled>
+              <i class="bi bi-check-circle"></i> Finalizar OP
+            </button>
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="expandido-footer" onclick="recolherCard({{ recurso.IDMaquina }})">
+          <span class="collapse-text">Clique para recolher</span>
+          <i class="bi bi-chevron-up collapse-icon"></i>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  
+  <!-- Mensagem para quando não há recursos -->
+  {% if not recursos %}
+  <div class="no-recursos">
+    <div class="no-recursos-icon">
+      <i class="bi bi-search"></i>
+    </div>
+    <h3>Nenhum recurso encontrado</h3>
+    {% if setor_selecionado %}
+    <p>Não existem recursos ativos no setor selecionado.</p>
+    <a href="{{ url_for('dashboard') }}" class="btn-dashboard">
+      <i class="bi bi-arrow-repeat"></i> Mostrar Todos os Recursos
+    </a>
+    {% else %}
+    <p>Não existem recursos ativos cadastrados no sistema.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+  
+  <!-- Modal de Produção -->
+  <div id="modalProducao" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalProducaoTitulo">Adicionar Produção</h3>
+        <button class="modal-close" onclick="fecharModal('modalProducao')">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="formProducao" method="POST">
+          <input type="hidden" id="producaoIdMaquina" name="id_maquina">
+          <input type="hidden" id="producaoTipo" name="tipo">
+          
+          <div class="form-group">
+            <label for="producaoQuantidade">Quantidade:</label>
+            <input type="number" id="producaoQuantidade" name="quantidade" min="1" required class="form-control">
+          </div>
+          
+          <div class="form-group">
+            <label for="producaoObservacao">Observação (opcional):</label>
+            <textarea id="producaoObservacao" name="observacao" class="form-control" rows="2"></textarea>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn-dashboard btn-cancelar" onclick="fecharModal('modalProducao')">
+              Cancelar
+            </button>
+            <button type="submit" class="btn-dashboard btn-adicionar">
+              <i class="bi bi-plus-lg"></i> Adicionar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Refugo -->
+  <div id="modalRefugo" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Adicionar Refugo</h3>
+        <button class="modal-close" onclick="fecharModal('modalRefugo')">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="formRefugo" method="POST">
+          <input type="hidden" id="refugoIdMaquina" name="id_maquina">
+          
+          <div class="form-group">
+            <label for="refugoQuantidade">Quantidade:</label>
+            <input type="number" id="refugoQuantidade" name="quantidade" min="1" required class="form-control">
+          </div>
+          
+          <div class="form-group">
+            <label for="motivoRefugo">Motivo do Refugo:</label>
+            <select id="motivoRefugo" name="motivo_refugo" required class="form-control">
+              <option value="">Selecione um motivo</option>
+              {% for motivo in motivos_refugo %}
+              <option value="{{ motivo.IDMotivoRefugo }}">{{ motivo.Descricao }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="form-group" id="outroMotivoGroup" style="display: none;">
+            <label for="outroMotivo">Especifique o Motivo:</label>
+            <input type="text" id="outroMotivo" name="outro_motivo" class="form-control">
+          </div>
+          
+          <div class="form-group">
+            <label for="refugoObservacao">Observação (opcional):</label>
+            <textarea id="refugoObservacao" name="observacao" class="form-control" rows="2"></textarea>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn-dashboard btn-cancelar" onclick="fecharModal('modalRefugo')">
+              Cancelar
+            </button>
+            <button type="submit" class="btn-dashboard btn-adicionar">
+              <i class="bi bi-plus-lg"></i> Adicionar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- JavaScript para expandir/recolher cards e funcionalidades dos modais -->
+  <script>
+    // Espera o DOM carregar completamente
+    document.addEventListener('DOMContentLoaded', function() {
+      // Adiciona event listeners para todos os mini-footers
+      document.querySelectorAll('.mini-footer').forEach(function(footer) {
+        footer.addEventListener('click', function() {
+          // Encontra o card pai
+          const card = this.closest('.recurso-card');
+          // Expande o card
+          card.classList.add('expanded');
+          // Rola para o card
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+      
+      // Adiciona event listeners para todos os expandido-footers
+      document.querySelectorAll('.expandido-footer').forEach(function(footer) {
+        footer.addEventListener('click', function(e) {
+          // Previne a propagação do evento
+          e.stopPropagation();
+          // Encontra o card pai
+          const card = this.closest('.recurso-card');
+          // Recolhe o card
+          card.classList.remove('expanded');
+        });
+      });
+      
+      // Adiciona event listeners para os botões de ação
+      document.querySelectorAll('.btn-action').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+        });
+      });
+      
+      // Implementa as funções para os botões de interromper e finalizar OP
+      document.querySelectorAll('.btn-interromper').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const idMaquina = this.getAttribute('data-id');
+          if (idMaquina && confirm('Deseja realmente interromper a OP da máquina ' + idMaquina + '?')) {
+            alert('OP interrompida com sucesso!');
+          }
+        });
+      });
+      
+      document.querySelectorAll('.btn-finalizar').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const idMaquina = this.getAttribute('data-id');
+          if (idMaquina && confirm('Deseja realmente finalizar a OP da máquina ' + idMaquina + '?')) {
+            alert('OP finalizada com sucesso!');
+          }
+        });
+      });
+      
+      // Event listener para o formulário de produção
+      document.getElementById('formProducao').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const idMaquina = document.getElementById('producaoIdMaquina').value;
+        const tipo = document.getElementById('producaoTipo').value;
+        const quantidade = document.getElementById('producaoQuantidade').value;
+        const observacao = document.getElementById('producaoObservacao').value;
+        
+        // Preparar os dados para envio
+        const formData = new FormData();
+        formData.append('id_maquina', idMaquina);
+        formData.append('tipo', tipo);
+        formData.append('quantidade', quantidade);
+        formData.append('observacao', observacao);
+        
+        // Enviar os dados para o servidor
+        fetch('/adicionar_producao', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Atualiza o valor exibido no card
+            const elementoValor = document.querySelector(`#recurso-${idMaquina} .producao-item:nth-child(${tipo === 'unidade' ? '1' : '2'}) .producao-value`);
+            if (elementoValor) {
+              const valorTexto = elementoValor.textContent;
+              const valorAtual = parseInt(valorTexto.match(/\d+/)[0]);
+              const novoValor = valorAtual + parseInt(quantidade);
+              elementoValor.textContent = `${novoValor} ${tipo === 'unidade' ? 'unidades' : 'caixas'}`;
+            }
+            
+            // Exibe mensagem de sucesso
+            alert(`${quantidade} ${tipo === 'unidade' ? 'unidades' : 'caixas'} adicionadas com sucesso!`);
+            
+            // Fecha o modal
+            fecharModal('modalProducao');
+            
+            // Limpa o formulário
+            this.reset();
+          } else {
+            alert('Erro ao adicionar produção: ' + (data.message || 'Erro desconhecido'));
+          }
+        })
+        .catch(error => {
+          console.error('Erro ao enviar dados:', error);
+          alert('Erro ao enviar dados. Verifique o console para mais detalhes.');
+        });
+      });
+      
+      // Event listener para o formulário de refugo
+      document.getElementById('formRefugo').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const idMaquina = document.getElementById('refugoIdMaquina').value;
+        const quantidade = document.getElementById('refugoQuantidade').value;
+        const motivo = document.getElementById('motivoRefugo').value;
+        const outroMotivo = document.getElementById('outroMotivo').value;
+        const observacao = document.getElementById('refugoObservacao').value;
+        
+        // Validação do motivo "Outros"
+        if (motivo === '6' && !outroMotivo.trim()) {
+          alert('Por favor, especifique o motivo do refugo.');
+          document.getElementById('outroMotivo').focus();
+          return;
+        }
+        
+        // Preparar os dados para envio
+        const formData = new FormData();
+        formData.append('id_maquina', idMaquina);
+        formData.append('quantidade', quantidade);
+        formData.append('motivo_refugo', motivo);
+        formData.append('outro_motivo', outroMotivo);
+        formData.append('observacao', observacao);
+        
+        // Enviar os dados para o servidor
+        fetch('/adicionar_refugo', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Atualiza o valor exibido no card
+            const elementoValor = document.querySelector(`#recurso-${idMaquina} .producao-item:nth-child(3) .producao-value`);
+            if (elementoValor) {
+              const valorTexto = elementoValor.textContent;
+              const valorAtual = parseInt(valorTexto.match(/\d+/)[0]);
+              const novoValor = valorAtual + parseInt(quantidade);
+              elementoValor.textContent = `${novoValor} unidades`;
+            }
+            
+            // Exibe mensagem de sucesso
+            alert(`${quantidade} unidades refugadas com sucesso!`);
+            
+            // Fecha o modal
+            fecharModal('modalRefugo');
+            
+            // Limpa o formulário
+            this.reset();
+          } else {
+            alert('Erro ao adicionar refugo: ' + (data.message || 'Erro desconhecido'));
+          }
+        })
+        .catch(error => {
+          console.error('Erro ao enviar dados:', error);
+          alert('Erro ao enviar dados. Verifique o console para mais detalhes.');
+        });
+      });
+      
+      // Event listener para mostrar/ocultar o campo "Outro motivo"
+      document.getElementById('motivoRefugo').addEventListener('change', function() {
+        const outroMotivoGroup = document.getElementById('outroMotivoGroup');
+        const outroMotivo = document.getElementById('outroMotivo');
+        
+        // Verifica se existe uma opção "Outros" e qual é seu valor
+        const outrosOption = Array.from(this.options).find(option => 
+          option.text.toLowerCase().includes('outro') || 
+          option.text.toLowerCase().includes('outros')
+        );
+        
+        if (outrosOption && this.value === outrosOption.value) {
+          outroMotivoGroup.style.display = 'block';
+          outroMotivo.setAttribute('required', 'required');
+        } else {
+          outroMotivoGroup.style.display = 'none';
+          outroMotivo.removeAttribute('required');
+        }
+      });
+      
+      // Fecha o modal quando clicar fora dele
+      window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+          e.target.style.display = 'none';
+        }
+      });
+    });
+    
+    // Funções para os modais
+    function abrirModalProducao(idMaquina, tipo, event) {
+      event.stopPropagation();
+      
+      // Preenche os campos do modal
+      document.getElementById('producaoIdMaquina').value = idMaquina;
+      document.getElementById('producaoTipo').value = tipo;
+      
+      // Atualiza o título do modal
+      const titulo = tipo === 'unidade' ? 'Adicionar Produção (Unidades)' : 'Adicionar Produção (Caixas)';
+      document.getElementById('modalProducaoTitulo').textContent = titulo;
+      
+      // Exibe o modal
+      document.getElementById('modalProducao').style.display = 'block';
+      
+      // Foca no campo de quantidade
+      document.getElementById('producaoQuantidade').focus();
+    }
+    
+    function abrirModalRefugo(idMaquina, event) {
+      event.stopPropagation();
+      
+      // Preenche o campo de ID da máquina
+      document.getElementById('refugoIdMaquina').value = idMaquina;
+      
+      // Exibe o modal
+      document.getElementById('modalRefugo').style.display = 'block';
+      
+      // Foca no campo de quantidade
+      document.getElementById('refugoQuantidade').focus();
+    }
+    
+        function fecharModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+    
+    // Funções de expansão e recolhimento para compatibilidade
+    function expandirCard(idMaquina) {
+      const card = document.getElementById('recurso-' + idMaquina);
+      card.classList.add('expanded');
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    function recolherCard(idMaquina) {
+      const card = document.getElementById('recurso-' + idMaquina);
+      card.classList.remove('expanded');
+      event.stopPropagation();
+    }
+    
+    function interromperOP(idMaquina, event) {
+      event.stopPropagation();
+      if (confirm('Deseja realmente interromper a OP da máquina ' + idMaquina + '?')) {
+        // Enviar requisição AJAX para interromper a OP
+        fetch('/interromper_op', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id_maquina: idMaquina })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('OP interrompida com sucesso!');
+            // Recarregar a página para atualizar os dados
+            window.location.reload();
+          } else {
+            alert('Erro ao interromper OP: ' + (data.message || 'Erro desconhecido'));
+          }
+        })
+        .catch(error => {
+          console.error('Erro:', error);
+          alert('Erro ao interromper OP. Verifique o console para mais detalhes.');
+        });
+      }
+    }
+    
+    function finalizarOP(idMaquina, event) {
+      event.stopPropagation();
+      if (confirm('Deseja realmente finalizar a OP da máquina ' + idMaquina + '?')) {
+        // Enviar requisição AJAX para finalizar a OP
+        fetch('/finalizar_op', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id_maquina: idMaquina })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('OP finalizada com sucesso!');
+            // Recarregar a página para atualizar os dados
+            window.location.reload();
+          } else {
+            alert('Erro ao finalizar OP: ' + (data.message || 'Erro desconhecido'));
+          }
+        })
+        .catch(error => {
+          console.error('Erro:', error);
+          alert('Erro ao finalizar OP. Verifique o console para mais detalhes.');
+        });
+      }
+    }
+  </script>
+</div>
+
+<style>
+  :root {
+    --primary-color: #2e7d32;
+    --primary-light: rgba(46, 125, 50, 0.1);
+    --primary-hover: #1b5e20;
+    --success-color: #4caf50;
+    --warning-color: #ff9800;
+    --danger-color: #e36767;
+    --gray-light: #f5f5f5;
+    --gray-medium: #e0e0e0;
+    --gray-dark: #757575;
+    --blue-color: #2196f3;
+    --red-color: #f44336;
+    --info-color: #03a9f4;
+  }
+
+  .dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  
+  /* Filtro de Setor */
+  .filtro-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  
+  .filtro-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: var(--primary-light);
+    border-bottom: 1px solid var(--gray-medium);
+  }
+  
+  .filtro-title {
+    display: flex;
+    align-items: center;
+  }
+  
+  .filtro-title i {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+    color: var(--primary-color);
+  }
+  
+  .filtro-title h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--primary-color);
+  }
+  
+  .filtro-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .filtro-form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .filtro-form label {
+    font-weight: 500;
+    color: var(--gray-dark);
+  }
+  
+  .filtro-form select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--gray-medium);
+    border-radius: 6px;
+    background-color: white;
+    min-width: 250px;
+    font-size: 0.9rem;
+  }
+  
+  .filtro-form select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary-light);
+  }
+  
+  .btn-limpar-filtro {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--gray-light);
+    border: 1px solid var(--gray-medium);
+    border-radius: 6px;
+    color: var(--gray-dark);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  
+  .btn-limpar-filtro:hover {
+    background: var(--gray-medium);
+    color: #333;
+  }
+  
+  .btn-limpar-filtro i {
+    margin-right: 0.5rem;
+  }
+  
+  .filtro-info {
+    padding: 0.75rem 1.5rem;
+    background: white;
+  }
+  
+  .recursos-contador {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    background: var(--gray-light);
+    border-radius: 50px;
+    font-size: 0.85rem;
+    color: var(--gray-dark);
+  }
+  
+  .recursos-contador i {
+    margin-right: 0.5rem;
+  }
+  
+  /* Setor Badge */
+  .setor-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background-color: rgba(3, 169, 244, 0.15);
+    color: var(--info-color);
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-left: 0.5rem;
+  }
+  
+  /* Mensagem para quando não há recursos */
+  .no-recursos {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 3rem 2rem;
+    text-align: center;
+    margin-top: 2rem;
+  }
+  
+  .no-recursos-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--gray-light);
+    margin-bottom: 1.5rem;
+  }
+  
+  .no-recursos-icon i {
+    font-size: 2.5rem;
+    color: var(--gray-dark);
+  }
+  
+  .no-recursos h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #333;
+  }
+  
+  .no-recursos p {
+    font-size: 1rem;
+    color: var(--gray-dark);
+    margin-bottom: 1.5rem;
+  }
+  
+  .no-recursos .btn-dashboard {
+    display: inline-flex;
+    margin: 0 auto;
+  }
+  
+  .dashboard-header {
+    margin-bottom: 2rem;
+  }
+  
+  .dashboard-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0;
+  }
+  
+  .recursos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .recurso-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    animation: fadeIn 0.5s ease forwards;
+    opacity: 0;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .recurso-card:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    transform: translateY(-3px);
+  }
+  
+  .recurso-card.expanded {
+    grid-column: 1 / -1;
+    cursor: default;
+  }
+  
+  /* Estilos específicos para expansão */
+  .recurso-expandido {
+    display: none;
+  }
+  
+  .recurso-card.expanded .recurso-mini {
+    display: none;
+  }
+  
+  .recurso-card.expanded .recurso-expandido {
+    display: block;
+  }
+  
+  .recurso-mini {
+    padding-bottom: 0.5rem;
+  }
+  
+  .recurso-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--primary-light);
+    border-bottom: 1px solid var(--gray-medium);
+  }
+  
+  .recurso-title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+  
+  .recurso-title h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--primary-color);
+  }
+  
+  .recurso-codigo {
+    font-size: 0.85rem;
+    color: var(--gray-dark);
+    font-weight: 500;
+  }
+  
+  .recurso-status {
+    padding: 0.35rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  
+  .status-running {
+    background-color: rgba(76, 175, 80, 0.15);
+    color: #2e7d32;
+  }
+  
+  .status-stopped {
+    background-color: rgba(244, 67, 54, 0.15);
+    color: #d32f2f;
+  }
+  
+  .status-unknown {
+    background-color: rgba(158, 158, 158, 0.15);
+    color: #616161;
+  }
+  
+  /* Mini Indicadores */
+  .mini-indicadores {
+    display: flex;
+    justify-content: space-around;
+    padding: 1rem 1.5rem;
+  }
+  
+  .mini-indicador {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .mini-label {
+    font-size: 0.75rem;
+    color: var(--gray-dark);
+    margin-bottom: 0.25rem;
+  }
+  
+  .mini-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  
+  .mini-footer, .expandido-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    color: var(--gray-dark);
+    font-size: 0.85rem;
+    background: var(--gray-light);
+    border-top: 1px solid var(--gray-medium);
+    cursor: pointer;
+  }
+  
+  .mini-footer:hover, .expandido-footer:hover {
+    background: var(--gray-medium);
+  }
+  
+  .expand-icon, .collapse-icon {
+    margin-left: 0.5rem;
+  }
+  
+  /* Seção de indicadores */
+  .indicadores-section {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--gray-medium);
+  }
+  
+  .indicador-card {
+    background: var(--gray-light);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .indicador-card.oee {
+    background: white;
+    border: 1px solid var(--gray-medium);
+    margin-bottom: 1.5rem;
+  }
+  
+  .indicadores-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  
+  .indicador-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .indicador-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--gray-dark);
+  }
+  
+  .indicador-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+  
+  .value-success {
+    color: var(--success-color);
+  }
+  
+  .value-warning {
+    color: var(--warning-color);
+  }
+  
+  .value-danger {
+    color: var(--danger-color);
+  }
+  
+  .progress-bar {
+    height: 8px;
+    background-color: var(--gray-medium);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+  }
+  
+  .indicador-meta {
+    font-size: 0.75rem;
+    color: var(--gray-dark);
+    text-align: right;
+  }
+  
+  /* Seção de informações da ordem */
+  .ordem-section {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--gray-medium);
+  }
+  
+  .ordem-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  
+  .ordem-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--primary-color);
+  }
+  
+  .ordem-badge {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    padding: 0.35rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  
+  .ordem-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  
+  .ordem-item {
+    background: var(--gray-light);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+  }
+  
+  .ordem-label {
+    font-size: 0.75rem;
+    color: var(--gray-dark);
+    margin-bottom: 0.25rem;
+  }
+  
+  .ordem-value {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+  }
+  
+  /* Seção de produção */
+  .producao-section {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--gray-medium);
+  }
+  
+  .producao-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  
+  .producao-item {
+    display: flex;
+    align-items: center;
+    background: var(--gray-light);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  
+  .producao-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+  
+  .producao-icon i {
+    font-size: 1.25rem;
+  }
+  
+  .producao-ok {
+    background-color: rgba(76, 175, 80, 0.15);
+    color: var(--success-color);
+  }
+  
+  .producao-caixas {
+    background-color: rgba(33, 150, 243, 0.15);
+    color: var(--blue-color);
+  }
+  
+  .producao-refugo {
+    background-color: rgba(244, 67, 54, 0.15);
+    color: var(--red-color);
+  }
+  
+  .producao-content {
+    flex-grow: 1;
+  }
+  
+  .producao-label {
+    font-size: 0.75rem;
+    color: var(--gray-dark);
+    margin-bottom: 0.25rem;
+  }
+  
+  .producao-value {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid var(--gray-medium);
+    color: var(--gray-dark);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .btn-action:hover {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+  
+  .btn-refugo:hover {
+    background: rgba(244, 67, 54, 0.15);
+    color: var(--red-color);
+    border-color: var(--red-color);
+  }
+  
+  /* Seção de ações */
+  .acoes-section {
+    padding: 1.5rem;
+  }
+  
+  .acoes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  
+  .btn-dashboard {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .btn-adicionar {
+    background: var(--primary-color);
+    color: white;
+  }
+  
+  .btn-adicionar:hover {
+    background: var(--primary-hover);
+  }
+  
+  .btn-fila {
+    background: var(--blue-color);
+    color: white;
+  }
+  
+  .btn-fila:hover {
+    background: #1976d2;
+  }
+  
+  .btn-interromper {
+    background: var(--warning-color);
+    color: white;
+  }
+  
+  .btn-interromper:hover {
+    background: #f57c00;
+  }
+  
+  .btn-finalizar {
+    background: var(--success-color);
+    color: white;
+  }
+  
+  .btn-finalizar:hover {
+    background: #388e3c;
+  }
+  
+  .btn-dashboard i {
+    margin-right: 0.5rem;
+  }
+  
+  .btn-dashboard.disabled {
+    background: var(--gray-medium);
+    color: var(--gray-dark);
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  
+  /* Estilos específicos para expansão */
+  .recurso-expandido {
+    display: none;
+    animation: fadeIn 0.3s ease forwards;
+  }
+  
+  .recurso-card.expanded {
+    grid-column: 1 / -1;
+    width: 100%;
+    cursor: default;
+    transform: none !important;
+  }
+  
+  .recurso-card.expanded .recurso-mini {
+    display: none;
+  }
+  
+  .recurso-card.expanded .recurso-expandido {
+    display: block;
+  }
+  
+  /* Estilos para os modais */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    overflow: auto;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .modal-content {
+    background-color: white;
+    margin: 10% auto;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    animation: slideIn 0.3s ease;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--primary-light);
+    border-bottom: 1px solid var(--gray-medium);
+    border-radius: 12px 12px 0 0;
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--primary-color);
+  }
+
+  .modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--gray-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+
+  .modal-close:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #333;
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.25rem;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--gray-medium);
+    border-radius: 6px;
+    font-size: 0.95rem;
+  }
+
+  .form-control:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary-light);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .btn-cancelar {
+    background-color: var(--gray-light);
+    color: var(--gray-dark);
+  }
+
+  .btn-cancelar:hover {
+    background-color: var(--gray-medium);
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateY(-50px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+</style>
+{% endblock %}
